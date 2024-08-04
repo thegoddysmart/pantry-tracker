@@ -1,17 +1,13 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import { Box, Stack, Typography, Button, Modal, TextField } from '@mui/material'
-import { firestore } from '@/firebase'
-import {
-  collection,
-  doc,
-  getDocs,
-  query,
-  setDoc,
-  deleteDoc,
-  getDoc,
-} from 'firebase/firestore'
+import { useState, useEffect } from 'react';
+import { Box, Stack, Typography, Button, Modal, TextField } from '@mui/material';
+import { firestore, auth } from '@/firebase';
+import { collection, doc, getDocs, query, setDoc, deleteDoc, getDoc } from 'firebase/firestore';
+import { onAuthStateChanged } from 'firebase/auth';
+import SignUp from './components/auth/SignUp';
+import Login from './components/auth/Login';
+import Logout from './components/auth/Logout';
 
 const style = {
   position: 'absolute',
@@ -26,71 +22,66 @@ const style = {
   display: 'flex',
   flexDirection: 'column',
   gap: 3,
-}
+};
 
 export default function Home() {
-  const [inventory, setInventory] = useState([])
-  const [filteredInventory, setFilteredInventory] = useState([])
-  const [open, setOpen] = useState(false)
-  const [itemName, setItemName] = useState('')
-  const [searchQuery, setSearchQuery] = useState('')
+  const [inventory, setInventory] = useState([]);
+  const [open, setOpen] = useState(false);
+  const [itemName, setItemName] = useState('');
+  const [user, setUser] = useState(null);
+
+  useEffect(() => {
+    onAuthStateChanged(auth, (currentUser) => {
+      setUser(currentUser);
+    });
+  }, []);
 
   const updateInventory = async () => {
-    const snapshot = query(collection(firestore, 'inventory'))
-    const docs = await getDocs(snapshot)
-    const inventoryList = []
+    const snapshot = query(collection(firestore, 'inventory'));
+    const docs = await getDocs(snapshot);
+    const inventoryList = [];
     docs.forEach((doc) => {
       inventoryList.push({
         name: doc.id,
         ...doc.data()
-      })
-    })
-    setInventory(inventoryList)
-    setFilteredInventory(inventoryList)
-    console.log(inventoryList)
-  }
+      });
+    });
+    setInventory(inventoryList);
+    console.log(inventoryList);
+  };
 
   const addItem = async (item) => {
-    const docRef = doc(collection(firestore, 'inventory'), item)
-    const docSnap = await getDoc(docRef)
+    const docRef = doc(collection(firestore, 'inventory'), item);
+    const docSnap = await getDoc(docRef);
     if (docSnap.exists()) {
-      const { quantity } = docSnap.data()
-      await setDoc(docRef, { quantity: quantity + 1 })
+      const { quantity } = docSnap.data();
+      await setDoc(docRef, { quantity: quantity + 1 });
     } else {
-      await setDoc(docRef, { quantity: 1 })
+      await setDoc(docRef, { quantity: 1 });
     }
-    await updateInventory()
-  }
-  
-  const removeItem = async (item) => {
-    const docRef = doc(collection(firestore, 'inventory'), item)
-    const docSnap = await getDoc(docRef)
+    await updateInventory();
+  };
 
+  const removeItem = async (item) => {
+    const docRef = doc(collection(firestore, 'inventory'), item);
+    const docSnap = await getDoc(docRef);
     if (docSnap.exists()) {
-      const { quantity } = docSnap.data()
+      const { quantity } = docSnap.data();
       if (quantity === 1) {
-        await deleteDoc(docRef)
+        await deleteDoc(docRef);
       } else {
-        await setDoc(docRef, { quantity: quantity - 1 })
+        await setDoc(docRef, { quantity: quantity - 1 });
       }
     }
-    await updateInventory()
-  }
+    await updateInventory();
+  };
 
-  const handleOpen = () => setOpen(true)
-  const handleClose = () => setOpen(false)
-
-  const handleSearch = (query) => {
-    setSearchQuery(query)
-    const filteredList = inventory.filter((item) =>
-      item.name.toLowerCase().includes(query.toLowerCase())
-    )
-    setFilteredInventory(filteredList)
-  }
+  const handleOpen = () => setOpen(true);
+  const handleClose = () => setOpen(false);
 
   useEffect(() => {
-    updateInventory()
-  }, [])
+    updateInventory();
+  }, []);
 
   return (
     <Box
@@ -124,9 +115,9 @@ export default function Home() {
             <Button
               variant="outlined"
               onClick={() => {
-                addItem(itemName)
-                setItemName('')
-                handleClose()
+                addItem(itemName);
+                setItemName('');
+                handleClose();
               }}
             >
               Add
@@ -134,62 +125,62 @@ export default function Home() {
           </Stack>
         </Box>
       </Modal>
-      <Stack direction="row" spacing={2} width="800px">
-        <TextField
-          id="search"
-          label="Search Items"
-          variant="outlined"
-          fullWidth
-          value={searchQuery}
-          onChange={(e) => handleSearch(e.target.value)}
-        />
-        <Button variant="contained" onClick={handleOpen}>
-          Add New Item
-        </Button>
-      </Stack>
-      <Box border={'1px solid #333'} width="800px" marginTop={2}>
-        <Box
-          width="100%"
-          height="100px"
-          bgcolor={'#ADD8E6'}
-          display={'flex'}
-          justifyContent={'center'}
-          alignItems={'center'}
-        >
-          <Typography variant={'h2'} color={'#333'} textAlign={'center'}>
-            Inventory Items
-          </Typography>
-        </Box>
-        <Stack width="100%" height="300px" spacing={2} overflow={'auto'}>
-          {filteredInventory.map(({ name, quantity }) => (
+      {!user ? (
+        <>
+          <SignUp />
+          <Login />
+        </>
+      ) : (
+        <>
+          <Logout />
+          <Button variant="contained" onClick={handleOpen}>
+            Add New Item
+          </Button>
+          <Box border={'1px solid #333'}>
             <Box
-              key={name}
-              width="100%"
-              minHeight="150px"
+              width="800px"
+              height="100px"
+              bgcolor={'#ADD8E6'}
               display={'flex'}
-              justifyContent={'space-between'}
+              justifyContent={'center'}
               alignItems={'center'}
-              bgcolor={'#f0f0f0'}
-              paddingX={5}
             >
-              <Typography variant={'h3'} color={'#333'} textAlign={'center'}>
-                {name.charAt(0).toUpperCase() + name.slice(1)}
-              </Typography>
-              <Typography variant={'h3'} color={'#333'} textAlign={'center'}>
-                {quantity}
-              </Typography>
-              <Stack direction="row" spacing={2}>
-                <Button variant="contained" onClick={() => addItem(name)}>
-                  Add
-                </Button>
-                <Button variant="contained" onClick={() => removeItem(name)}>
-                  Remove
-                </Button>
-              </Stack>
+              <Typography variant="h4">Pantry Tracker</Typography>
             </Box>
-          ))}
-        </Stack>
-      </Box>
+            {inventory.map((item) => (
+              <Box
+                key={item.name}
+                width="800px"
+                height="80px"
+                display={'flex'}
+                justifyContent={'space-around'}
+                alignItems={'center'}
+                borderTop={'1px solid #333'}
+                borderBottom={'1px solid #333'}
+              >
+                <Typography>{item.name}</Typography>
+                <Stack direction={'row'} spacing={2}>
+                  <Button
+                    variant="contained"
+                    color="success"
+                    onClick={() => addItem(item.name)}
+                  >
+                    +
+                  </Button>
+                  <Typography>{item.quantity}</Typography>
+                  <Button
+                    variant="contained"
+                    color="error"
+                    onClick={() => removeItem(item.name)}
+                  >
+                    -
+                  </Button>
+                </Stack>
+              </Box>
+            ))}
+          </Box>
+        </>
+      )}
     </Box>
-  )
+  );
 }
