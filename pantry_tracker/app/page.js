@@ -30,8 +30,10 @@ const style = {
 
 export default function Home() {
   const [inventory, setInventory] = useState([])
+  const [filteredInventory, setFilteredInventory] = useState([])
   const [open, setOpen] = useState(false)
   const [itemName, setItemName] = useState('')
+  const [searchQuery, setSearchQuery] = useState('')
 
   const updateInventory = async () => {
     const snapshot = query(collection(firestore, 'inventory'))
@@ -44,6 +46,7 @@ export default function Home() {
       })
     })
     setInventory(inventoryList)
+    setFilteredInventory(inventoryList)
     console.log(inventoryList)
   }
 
@@ -76,6 +79,14 @@ export default function Home() {
 
   const handleOpen = () => setOpen(true)
   const handleClose = () => setOpen(false)
+
+  const handleSearch = (query) => {
+    setSearchQuery(query)
+    const filteredList = inventory.filter((item) =>
+      item.name.toLowerCase().includes(query.toLowerCase())
+    )
+    setFilteredInventory(filteredList)
+  }
 
   useEffect(() => {
     updateInventory()
@@ -123,12 +134,22 @@ export default function Home() {
           </Stack>
         </Box>
       </Modal>
-      <Button variant="contained" onClick={handleOpen}>
-        Add New Item
-      </Button>
-      <Box border={'1px solid #333'}>
+      <Stack direction="row" spacing={2} width="800px">
+        <TextField
+          id="search"
+          label="Search Items"
+          variant="outlined"
+          fullWidth
+          value={searchQuery}
+          onChange={(e) => handleSearch(e.target.value)}
+        />
+        <Button variant="contained" onClick={handleOpen}>
+          Add New Item
+        </Button>
+      </Stack>
+      <Box border={'1px solid #333'} width="800px" marginTop={2}>
         <Box
-          width="800px"
+          width="100%"
           height="100px"
           bgcolor={'#ADD8E6'}
           display={'flex'}
@@ -139,8 +160,8 @@ export default function Home() {
             Inventory Items
           </Typography>
         </Box>
-        <Stack width="800px" height="300px" spacing={2} overflow={'auto'}>
-          {inventory.map(({name, quantity}) => (
+        <Stack width="100%" height="300px" spacing={2} overflow={'auto'}>
+          {filteredInventory.map(({ name, quantity }) => (
             <Box
               key={name}
               width="100%"
